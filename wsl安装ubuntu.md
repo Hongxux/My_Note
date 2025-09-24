@@ -13,6 +13,10 @@ dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /nores
 wsl --set-default-version 2
 ```
 - 重启电脑
+- ![[Pasted image 20250920170903.png]]
+##### 出现问题
+Error code: Wsl/Service/CreateInstance/MountVhd/HCS/ERROR_FILE_NOT_FOUND
+
 ## 安装ubuntu
 - 下载appx
 **Ubuntu2204：**  
