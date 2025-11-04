@@ -1,0 +1,3 @@
+**重写equals方法**​：为了基于状态比较对象，需重写equals方法。例如，在Employee类中，equals方法比较name、salary和hireDay字段是否相同。重写时需遵循步骤：①检查引用相同、②处理null、③检查类类型相同，④然后比较字段值。（如果不一定含有默认值的字段，要用equals（）进行比较）
+		- ![[Pasted image 20251018211922.png]] **Null安全比较**​：推荐使用`Objects.equals()`方法比较字段，因为它安全处理null值：如果两个参数都为null返回true，一个为null返回false，否则调用equals方法。这避免了NullPointerException。​
+- **子类重写**​：在子类（如Manager）中重写equals时，应先调用超类的equals方法（如`super.equals(otherObject)`），如果超类比较失败，则直接返回false；否则再比较子类特有字段（如bonus）。

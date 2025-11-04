@@ -1,16 +1,5 @@
-To understand what constitutes a process, we thus have to understand its machine state: what a program can read or update when it is running. At any given time, what parts of the machine are important to the execution of this program?
 
-> [!NOTE] 原文
-> To understand what constitutes a process, we thus have to understand its machine state: what a program can read or update when it is running. At any given time, what parts of the machine are important to the execution of this program?
-
-### 一句话概括
-
-这段话的意思是：​**要理解“进程”是什么，我们不能只看它的代码，还必须理解它在运行时所有能访问和改变的硬件资源的状态集合。​**​ 换句话说，进程的“机器状态”定义了它在任一时刻的完整快照。
-
----
-
-### 详细分解与阐述
-
+### 进程的本质--机器状态
 #### 1. ​**核心概念：“机器状态”（Machine State）​**​
 
 这是这段话最关键的术语。它指的是**一个正在运行的程序所依赖的、并能对其进行读写的所有物理硬件资源的当前状况**。作者提出，进程的本质就是由它的机器状态构成的。
@@ -65,14 +54,5 @@ _此图展示了进程地址空间的典型布局，它是进程“机器状态�
 _此图展示了进程的几种基本状态（运行、就绪、阻塞），而状态切换的核心就是对机器状态的保存与恢复。_
 
 ---
-
-### 总结与联系
-
-所以，这段话是承上启下的关键：
-
-- ​**承上**​：它定义了“进程”不仅仅是静态的代码，更是**动态的、有状态的执行实体**。
-    
-- ​**启下**​：它为我们理解操作系统如何实现**多任务（通过保存/恢复状态进行上下文切换）​**​ 和**虚拟化（为每个进程抽象出独立的机器状态视图）​**​ 奠定了最重要的理论基础。
-    
-
-理解了一个进程的“机器状态”包含什么，你就理解了操作系统进行进程管理时到底需要处理和保护哪些资源，这是通往理解后续章节（如调度、内存虚拟化、并发）的基石。
+### 进程和线程的关系
+### [[进程间的通信方式]]
