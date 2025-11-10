@@ -84,7 +84,7 @@ public class UserController {
 }
 ```
 
-### 三、 接收JSON请求体：`@RequestBody`
+### 三、 接收JSON请求体：@RequestBody
 
 用于接收 ​**HTTP 请求体（Body）​**​ 中的数据，通常用于 POST 或 PUT 请求，接收 JSON 或 XML 格式的数据，并将其转换为 Java 对象。
 
