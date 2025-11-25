@@ -10,22 +10,22 @@
 ![[Pasted image 20251028152259.png]]
 #### DDL 数据定义语言
 ##### 关于数据库
-	- 查询
-		- 查询服务器中的所有数据库![[Pasted image 20251028152444.png]]
-		  ![[Pasted image 20251028152707.png]]
-		- 查询当前数据库（知道自己在使用哪个数据库）
-		  ![[Pasted image 20251028152543.png]]
-	- 创建
-	  ![[Pasted image 20251028152559.png]]
-	  ![[Pasted image 20251028152806.png]]
-		- 可选项：
-			 - if not exists![[Pasted image 20251028152856.png]]
-			- defualt charset![[Pasted image 20251028153046.png]]
-	- 删除
-		- ![[Pasted image 20251028153206.png]]
-		- ![[Pasted image 20251028153310.png]]
-	- 使用：
-		- ![[Pasted image 20251028153329.png]]
+- 查询
+	- 查询服务器中的所有数据库![[Pasted image 20251028152444.png]]
+	  ![[Pasted image 20251028152707.png]]
+	- 查询当前数据库（知道自己在使用哪个数据库）
+	  ![[Pasted image 20251028152543.png]]
+- 创建
+  ![[Pasted image 20251028152559.png]]
+  ![[Pasted image 20251028152806.png]]
+	- 可选项：
+		 - if not exists![[Pasted image 20251028152856.png]]
+		- defualt charset![[Pasted image 20251028153046.png]]
+- 删除
+	- ![[Pasted image 20251028153206.png]]
+	- ![[Pasted image 20251028153310.png]]
+- 使用：
+	- ![[Pasted image 20251028153329.png]]
 #####  关于表结构
 - 查询：
 ![[Pasted image 20251028153527.png]]

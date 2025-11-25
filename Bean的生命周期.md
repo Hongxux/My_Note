@@ -6,15 +6,24 @@ aliases:
 ![[f82deb22c29d57202354d69a707487f1.jpg]]
 ### Bean的创建
 #### 1. 解析XML配置文件，封装Bean元数据到**BeanDefinition**对象
-
-- **定义和扫描**：Spring 容器启动时，会解析配置（如 XML、注解或 Java Config）
-	容器启动时，[[Bean的扫描|扫描]]指定包路径下的类，识别带有 `@Component`, `@Service`, `@Controller`, `@Repository`, `@Configuration`等注解的类，将其定义为 Bean。（[[定义Bean的注解]]）
-- **封装信息：**将每个 Bean 的定义信息转换为 **BeanDefinition**对象（Bean 的“蓝图”）。
-	这个对象封装了 Bean 的类名、作用域（单例/原型）、是否懒加载等元数据
-
+Spring 容器需要知道要创建什么 Bean、如何创建、以及它们的依赖关系。这些信息被封装在 `BeanDefinition`对象中。
+- **定义和扫描**：Spring 容器启动时，会解析配置（如 XML、注解或 Java Config类）
+	容器启动时，[[Bean的扫描|扫描]]指定包路径下的类，识别带有 `@Component`, `@Service`, `@Controller`, `@Repository`, `@Configuration`（会扫描其定义的@Bean）等注解的类，将其定义为 Bean。（[[定义Bean的注解]]）
+- **封装信息与注册：** 将每个 Bean 的定义信息转换为 **BeanDefinition**对象（Bean 的“蓝图”）。
+	这个对象封装了 Bean 的类名、作用域（单例/原型）、是否懒加载等元数据。然后将其进行注册。
+	
+|加载方式|在生命周期中的定位与作用|
+|---|---|
+|**1. XML `<bean/>`**|最基础的元数据来源。容器启动时，**解析 XML 文件**，将每个 `<bean/>`标签转换为一个 `BeanDefinition`并注册。|
+|**2. `@Component`及衍生注解**|容器在**组件扫描**过程中，发现带有这些注解的类，为每个类生成一个 `BeanDefinition`并注册。|
+|**3. `@Bean`**|在解析 `@Configuration`类时，遇到 `@Bean`方法，会为其生成一个 `BeanDefinition`并注册。|
+|**4. `@Import(MyClass.class)`**|在解析 `@Import`注解时，直接为指定的 `MyClass`生成一个 `BeanDefinition`并注册。|
+|**5. `ImportSelector`**|在解析 `@Import`时，调用其 `selectImports`方法，**动态获取一批类的全限定名**，然后为每个类生成 `BeanDefinition`并注册。|
+|**6. `ImportBeanDefinitionRegistrar`**|在解析 `@Import`时，调用其 `registerBeanDefinitions`方法，并传入 **`BeanDefinitionRegistry`**参数。开发者可以在此**直接、编程式地**注册、修改或移除任何 `BeanDefinition`。**这是对注册过程的精细干预。**|
+|**7. `BeanDefinitionRegistryPostProcessor`**|这是**所有 `BeanDefinition`注册的【终极后门】**。在所有配置元数据（上述1-6）都被解析并注册后，容器会调用此接口的 `postProcessBeanDefinitionRegistry`方法。此时，开发者可以**检查并干预整个 `BeanDefinitionRegistry`**，可以覆盖任何已注册的 `BeanDefinition`，或注册新的。**Spring Boot 的自动配置就基于此实现。**|
 ####  2.实例化：通过反射调用构造方法或者指定工厂方法
 
-- 容器根据 `BeanDefinition`，通过**反射**调用 Bean 的构造方法或指定的工厂方法来创建对象实例。
+- 容器根据 `BeanDefinition`，通过**反射**调用 Bean 的构造方法或指定的工厂方法（BeanFactory）来创建对象实例。
 	**其属性均为默认值，依赖也还未注入**（此时得到的只是一个“空壳”）
 	
 

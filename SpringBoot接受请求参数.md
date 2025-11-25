@@ -1,4 +1,13 @@
 
+
+|特性维度|**`@RequestParam`**|**`@PathVariable`**|**`@RequestBody`**|**无需注解（表单绑定）**|
+|---|---|---|---|---|
+|**核心用途**|获取 **URL查询字符串**中的参数|获取 **URL路径**中的变量部分|将 **请求体**中的数据转换为Java对象|将 **查询字符串或表单数据**自动绑定到Java对象|
+|**传参方式**|`?key1=value1&key2=value2`|`/value`(如 `/users/123`)|请求体（如JSON、XML）|`?keyword=abc&page=1`(同`@RequestParam`，但自动封装)|
+|**参数可选性**|默认必选，可设 `required=false`改为可选|默认必选，路径变量不可或缺|通常为必选（无请求体则请求不成立）|对象属性可选与否取决于字段本身|
+|**主要特点**|1. 可处理单个、多个参数或Map  <br>2. 可设置默认值(`defaultValue`)|1. 专为RESTful风格设计  <br>2. 从URI模板中提取值|1. 通常用于POST/PUT请求  <br>2. 根据`Content-Type`（如`application/json`）进行转换|1. **无需任何注解**  <br>2. Spring自动匹配参数名到对象属性  <br>3. 支持嵌套属性|
+|**适用HTTP方法**|GET, POST等所有方法|GET, POST, PUT, DELETE等所有方法|主要为POST, PUT|GET, POST|
+|**简单示例**|`?name=John`|`/users/123`|`{"name":"Alice"}`|`?keyword=abc&page=1`|
 ### 一、 接收简单参数：`@RequestParam`
 
 这是最常用的方式，主要用于获取 ​**URL 查询字符串（Query String）​**​ 中的参数。
@@ -12,10 +21,10 @@
 
 ​**示例代码：​**​
 
-```
-@RestController
-public class UserController {
 
+
+1. 基本用法：获取单个参数
+```
     // 1. 基本用法：获取单个参数
     // 访问：GET /user?name=John
     @GetMapping("/user")
@@ -23,7 +32,9 @@ public class UserController {
         return "用户名: " + name;
     }
 
-    // 2. 明确指定参数名，并设置为可选
+```
+ 2. 明确指定参数名，并设置为可选
+```
     // 访问：GET /user?name=John&age=20 或 GET /user?name=John
     @GetMapping("/user")
     public String getUser(
@@ -34,8 +45,11 @@ public class UserController {
         }
         return "用户名: " + userName;
     }
+```
 
-    // 3. 接收所有参数到一个Map或对象
+
+3. 接收所有参数到一个Map或对象
+```
     // 访问：GET /user?name=John&age=20&city=Beijing
     @GetMapping("/user")
     public String getUserByMap(@RequestParam Map<String, Object> params) {
@@ -43,6 +57,9 @@ public class UserController {
     }
 }
 ```
+
+
+
 
 ### 二、 接收路径参数：`@PathVariable`
 
@@ -159,7 +176,7 @@ public class SearchController {
 
 ### 五、 其他有用注解
 
-1. ​**`@RequestHeader`**​：获取 HTTP 请求头信息。
+1. ​ `@RequestHeader` ：获取 HTTP 请求头信息。
     
     ```
     @GetMapping("/header")
@@ -168,7 +185,7 @@ public class SearchController {
     }
     ```
     
-2. ​**`@CookieValue`**​：获取 Cookie 值。
+2. ​`@CookieValue` ​：获取 Cookie 值。
     
     ```
     @GetMapping("/cookie")
@@ -205,5 +222,3 @@ public class SearchController {
     }
     ```
     
-
-掌握这些方法，您就能轻松处理 Spring Boot 开发中遇到的绝大多数参数接收场景。
