@@ -1,0 +1,85 @@
+- 定位：阻塞式的锁和同步器工具的框架
+- 工作模式：子类通常只需根据需求实现其中一种模式的一组方法。
+	- 独占模式：一次只有一个线程可获取资源，如 `ReentrantLock`
+	- 共享模式：多个线程可同时获取资源，如 `Semaphore`
+- 组成成分：
+	- state：同步状态，`volatile int`变量
+		-  设计目的：用于表示共享资源的状态
+			- 子类需定义 `state`的具体语义，并基于此实现资源获取与释放的逻辑。
+				- 在 `ReentrantLock`中，`state`表示锁被同一线程重入的次数（0 表示未锁定）
+				- 在 `Semaphore`中，`state`表示当前可用的许可证数量
+				- 在 `CountDownLatch`中，`state`表示倒计时计数器的初始值
+		- 相关操作：
+			- 获取当前状态值：`getState()`
+			- 设置状态值：setState(int newState):
+				- 用于不涉及竞争条件的初始化
+			- 线程安全地设置状态值：compareAndSetState(int expect, int update)：
+
+	- FIFO：等待队列
+		- 设计目的：用于管理所有获取资源失败的线程
+			- 子类无需关心队列细节，AQS 已封装所有底层操作。
+		- 更新方式：AQS 负责队列的维护、线程的阻塞与唤醒
+			- LockSupport.[[LockSupport的park方法|park]]`()`：阻塞线程
+			- `LockSupport.unpark()` ：唤醒线程
+		- 队列中节点的属性：
+			- 线程信息
+			- 前后指针
+			- waitStatus：标示节点的状态
+				- `SIGNAL`（-1）：有责任唤醒后继节点
+				- `CANCELLED`：当前节点已取消等待
+- 设计思想：
+	- 重写 AQS 的特定“钩子”方法（Hook Methods）来定义同步状态（state）的获取与释放规则
+	- 线程排队、阻塞、唤醒等复杂操作则由 AQS 的模板方法（如 `acquire`和 `release`）自动完成
+	- 模板方法：定义了获取/释放资源的固定算法骨架（如尝试获取、入队、阻塞、唤醒）
+		- 设计目的：定义了核心的工作流程
+			- 【钩子方法】其中关键的资源获取与释放逻辑留给你来实现
+		- 独占式：
+			- acquire(int arg)
+				- 获取资源，若失败则将线程加入同步队列等待，不响应中断
+			- acquireInterruptibly(int arg)
+				- 支持响应中断的独占式获取
+			- tryAcquireNanos(int arg, long nanosTimeout)
+				- 在可中断基础上，增加了**超时等待**功能
+			- release(int arg)
+				- 释放资源，并唤醒同步队列中的后继节点
+		- 共享式：
+			- acquireShared(int arg)
+			- acquireSharedInterruptibly(int arg)
+			- tryAcquireSharedNanos(int arg, long nanosTimeout)
+			- releaseShared(int arg)
+	- 钩子方法：你要实现的方法
+		- 独占
+			- `boolean tryAcquire(int arg)`：定义资源何时能被单个线程独占。
+				- `true`表示获取成功；`false`表示失败。
+			- `boolean tryRelease(int arg)`：定义如何释放独占资源。
+				- `true`表示已完全释放；`false`表示否。
+		- 共享：
+			- `int tryAcquireShared(int arg)`：定义资源何时能被多个线程共享。
+				- **负数**：获取失败；
+				- **0**：成功，但无剩余资源；
+				- **正数**：成功，且还有剩余资源。
+			- `boolean tryReleaseShared(int arg)`：定义如何释放共享资源。
+				- `true`表示释放后可能允许其他线程获取；`false`表示否。
+		- `boolean isHeldExclusively()`：判断当前资源是否被当前线程**独占**。
+			- 通常用于实现 Condition 条件变量
+	- 工具方法：辅助你实现钩子方法的方法
+		- 状态操作
+			- `getState()`获取当前同步状态值。
+			    - 在 `tryAcquire`或 `tryAcquireShared`中，首先调用此方法判断资源是否可用。
+			- `setState(int newState)`直接设置状态值，此操作**不具备原子性**保证。
+			    - 通常用于资源初始化，或在已持有锁、不存在竞争的单线程安全场景下更新状态。
+			- compareAndSetState(int expect, int update)通过 CAS（比较并交换）操作原子性地更新状态，是实现线程安全的核心。`
+			    - 在 `tryAcquire`中尝试获取锁或资源时（例如，在非重入锁中尝试将 state 从 0 改为 1）。
+		- 线程管理
+			- `setExclusiveOwnerThread(Thread thread)`记录当前独占模式下载的持有线程。
+			    - 实现可重入锁时，在成功获取锁后，调用此方法记录锁的持有者。
+			- `getExclusiveOwnerThread()`获取当前独占模式下载的持有线程。
+			    - 在 `tryRelease`中验证执行释放操作的线程是否正确，以及实现可重入功能时判断当前线程是否为锁的持有者。
+		- 队列状态查询
+			- `hasQueuedThreads()`检查同步队列中是否有线程正在等待。
+			    - 监控或诊断，了解是否存在资源竞争。
+			- hasQueuedPredecessors() 检查同步队列中是否存在比当前线程**更早**开始排队等待的线程，这是实现公平性的核心。`
+			    - 实现公平锁时，在 `tryAcquire`中先调用此方法，如果有排队者，则当前线程不应抢锁，而应乖乖排队，防止插队。
+		- 内部类支持
+			- `ConditionObject` AQS 提供的内部类，实现了 `Condition`接口，提供比 `Object.wait()/notify()`更强大、灵活的等待/通知机制。
+			    - 实现 `Lock`接口的 `newCondition()`方法，返回此类的实例，以支持多个条件队列。

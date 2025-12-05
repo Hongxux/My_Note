@@ -1,3 +1,7 @@
+---
+aliases:
+  - ZSET
+---
 ![[Pasted image 20251122140820.png]]
 好的，Redis 的 Sorted Set（有序集合，通常简写为 ZSet）是一个非常强大且实用的数据结构。它结合了 Set 的**唯一性**和 Hash 的**可排序性**，是解决排序相关问题的利器。
 
@@ -12,7 +16,7 @@
 
 接下来，我们深入了解一下它的命令、应用和原理。
 
-### ⚙️ 核心命令详解
+###  核心命令详解
 
 Sorted Set 的命令通常以 `Z`开头。下面按功能分类介绍最常用的命令。
 
@@ -65,62 +69,65 @@ Sorted Set 的命令通常以 `Z`开头。下面按功能分类介绍最常用�
     
 
 #### 2. 查询操作
+##### 范围查询
 
-- **按排名查询**（按照角标）
+###### **按排名查询**（按照角标）
+
+- **`ZRANGE key start stop [WITHSCORES]`**：按照分数**从低到高**（升序）返回指定排名区间（从0开始）的元素。`-1`表示最后一个。
+	
+- **`ZREVRANGE key start stop [WITHSCORES]`**：按照分数**从高到低**（降序）返回指定排名区间的元素。**这是获取排行榜TOP N最常用的命令。**
+	
+- **示例**：获取前三名玩家。
+	
+	```
+	127.0.0.1:6379> ZREVRANGE leaderboard 0 2 WITHSCORES
+	1) "Charlie"
+	2) "1200"
+	3) "Alice"
+	4) "1000"
+	5) "Bob"   # 假设Bob未被移除
+	6) "800"
+	```
+	
     
-    - **`ZRANGE key start stop [WITHSCORES]`**：按照分数**从低到高**（升序）返回指定排名区间（从0开始）的元素。`-1`表示最后一个。
-        
-    - **`ZREVRANGE key start stop [WITHSCORES]`**：按照分数**从高到低**（降序）返回指定排名区间的元素。**这是获取排行榜TOP N最常用的命令。**
-        
-    - **示例**：获取前三名玩家。
-        
-        ```
-        127.0.0.1:6379> ZREVRANGE leaderboard 0 2 WITHSCORES
-        1) "Charlie"
-        2) "1200"
-        3) "Alice"
-        4) "1000"
-        5) "Bob"   # 假设Bob未被移除
-        6) "800"
-        ```
-        
+######  **按分数查询**（滚动分页的redis实现方式）
     
-- **按分数查询**（滚动分页的redis实现方式）
+- **`ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]`**：返回分数在 `min`和 `max`之间的元素（升序）。可以用 `-inf`和 `+inf`表示负无穷和正无穷。
+![[Pasted image 20251122142228.png]]
+- **`ZREVRANGEBYSCORE key max min [WITHSCORES]`**：同上，但按降序。
+	
+- **示例**：获取分数在900到1100之间的玩家。
+	
+	```
+	127.0.0.1:6379> ZRANGEBYSCORE leaderboard 900 1100 WITHSCORES
+	1) "Alice"
+	2) "1000"
+	```
+        
+##### 范围统计统计
+	
+- **`ZCARD key`**：获取有序集合中元素的总数量。
+	
+- **`ZCOUNT key min max`**：统计指定分数范围内的元素数量。
+	
+- **示例**：
+	
+	```
+	127.0.0.1:6379> ZREVRANK leaderboard "Alice"
+	(integer) 1  # Alice是第二名
+	127.0.0.1:6379> ZCARD leaderboard
+	(integer) 3
+	127.0.0.1:6379> ZCOUNT leaderboard 500 1500
+	(integer) 3
+	```
+	
+#####  **获取特定元素的排名与统计**
     
-    - **`ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]`**：返回分数在 `min`和 `max`之间的元素（升序）。可以用 `-inf`和 `+inf`表示负无穷和正无穷。
-	![[Pasted image 20251122142228.png]]
-	- **`ZREVRANGEBYSCORE key max min [WITHSCORES]`**：同上，但按降序。
-        
-    - **示例**：获取分数在900到1100之间的玩家。
-        
-        ```
-        127.0.0.1:6379> ZRANGEBYSCORE leaderboard 900 1100 WITHSCORES
-        1) "Alice"
-        2) "1000"
-        ```
-        
-    
-- **获取排名与统计**
-    
-    - **`ZRANK key member`**：获取元素的升序排名（从0开始，分数最低的排第0）。
-        
-    - **`ZREVRANK key member`**：获取元素的降序排名（分数最高的排第0）。**这是获取玩家具体名次最常用的命令。**
-        
-    - **`ZCARD key`**：获取有序集合中元素的总数量。
-        
-    - **`ZCOUNT key min max`**：统计指定分数范围内的元素数量。
-        
-    - **示例**：
-        
-        ```
-        127.0.0.1:6379> ZREVRANK leaderboard "Alice"
-        (integer) 1  # Alice是第二名
-        127.0.0.1:6379> ZCARD leaderboard
-        (integer) 3
-        127.0.0.1:6379> ZCOUNT leaderboard 500 1500
-        (integer) 3
-        ```
-        
+- **`ZRANK key member`**：获取元素的升序排名（从0开始，分数最低的排第0）。
+	
+- **`ZREVRANK key member`**：获取元素的降序排名（分数最高的排第0）。**这是获取玩家具体名次最常用的命令。**
+
+
     
 
 #### 3. 分数操作
@@ -137,8 +144,19 @@ Sorted Set 的命令通常以 `Z`开头。下面按功能分类介绍最常用�
         ```
         
     
+### 对分数score的设计
+#### 排序优先级
+例如实现先按照分数，分数相同再按照时间
+- 思路：
+	- 时间戳是固定位数的
+	- 一个分数中可以划分存储
+- 实现方法：
+	- 小数部分法：最终分数 = 原始分数 + (1 - 时间戳 / 一个足够大的数，如 1e13)
+		- 将时间戳存储在小数后面
+	- 整数放大法：最终分数 = 原始分数 * 10^13 + (MAX_TIMESTAMP - 时间戳)
+		- 将时间戳放在更小的整数位
 
-### 💡 主要应用场景
+### 主要应用场景
 
 1. **排行榜系统**
     
@@ -166,29 +184,34 @@ Sorted Set 的命令通常以 `Z`开头。下面按功能分类介绍最常用�
 
 ### 🔩 底层实现原理
 
-Sorted Set 的智能之处在于其底层的编码切换，以平衡内存和性能 。
+Sorted Set 底层数据结构的要求：
+- 键值存储
+- 键必须唯一
+- 可排序
 
 - **ziplist（压缩列表）**
     
-    - **触发条件**：当有序集合中的**元素数量小于 `zset-max-ziplist-entries`（默认128）**，并且**每个元素的值的大小都小于 `zset-max-ziplist-value`（默认64字节）**时使用。
-        
-    - **结构**：是一块连续的内存，元素、分数紧凑地存储在一起。**内存效率极高**，但修改效率较低。
+    - **触发条件**：
+	    - 当有序集合中的**元素数量小于 `zset-max-ziplist-entries`（默认128）**
+		- 并且**每个元素的值的大小都小于 `zset-max-ziplist-value`（默认64字节）**时使用。
+    - 实现的方式：ziplist本身没有排序功能，而且没有键值对的概念，因此需要有zset通过编码实现![[b1c8bc73cbd1daa57aac4ab91ee2453c.jpeg]]
+	    - 实现存储键值对：ZipList是连续内存，因此score和element是紧挨在一起的两个entry，element在前，score在后
+	    - 实现可排序：score越小越接近队首，score越大越接近队尾，按照score值升序排列
+	- 为什么不方便不自然也要用ziplist：内存和性能的权衡
+		- 数据量小的时候，维护和存储两个数据结构（skiplist+dict）占用内存大的同时，也没有特别显著提升性能
         
     
-- **skiplist（跳跃表） + hashtable（字典）**
+- 组合使用**skiplist（跳跃表） + Dict（字典）**![[Pasted image 20251127132355.png]]![[1fae7e0c2f6a84b1c70828f3aea65cfd.jpeg]]
     
     - **触发条件**：当不满足上述 ziplist 的条件时，会自动转换为此结构。
         
-    - **结构**：
+    - **结构**：在需要不同功能的时候使用不同的数据结构，同时在增删改的时候也要维护两种数据结构
         
-        - **跳跃表（skiplist）**：一种多层的有序链表，可以实现快速的范围查询（如 `ZRANGE`），平均时间复杂度为 O(log N)。
-            
-        - **哈希表（hashtable）**：以元素为 key，分数为 value，用于实现快速的点查询（如 `ZSCORE`），时间复杂度为 O(1)。
-            
-        
-    - 这两种结构组合使用，共同维护同一份数据，以满足不同的操作需求。
-        
-    
+        - **跳跃表（[[skiplist]]）**：
+			- 可排序    
+        - **哈希表（hashtable）**：
+	        - 满足键值存储
+	        - 以及键的唯一性
 
 ### ⚠️ 重要注意事项
 

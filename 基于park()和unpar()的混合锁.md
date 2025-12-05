@@ -138,7 +138,7 @@ void lock_init(lock_t *m) {
     - 当**线程A**再次被调度并执行`park()`时，它可能会因为错过唤醒信号而**永久休眠**。
         
     
-    解决这个问题通常需要在`park()`前再次检查某个条件，或者使用如[[Linux futex]]这样的机制，它们内部通过维护一个状态来避免这种唤醒丢失。又或者使用Solaris [[setpark()]]。二者区别如下：[[​Solaris park和Linux futex区别]]
+    解决这个问题通常需要在`park()`前再次检查某个条件，或者使用如[[futex]]这样的机制，它们内部通过维护一个状态来避免这种唤醒丢失。又或者使用Solaris [[setpark()]]。二者区别如下：[[​Solaris park和Linux futex区别]]
     
 
 ### 💎 总结

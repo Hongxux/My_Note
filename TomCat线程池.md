@@ -1,0 +1,61 @@
+ ![[Pasted image 20251203083948.png]]
+- 组成成分
+	- LimitLatch 用来限流，可以控制最大连接个数，类似J.U.C中的 Semaphore 后面再讲
+	- Acceptor 只负责【接收新的socket 连接】
+	- Poller 只负责监听 socket channel 是否有【可读的 ⅣO 事件】
+	- 一旦可读，封装一个任务对象(socketProcessor)，提交给Executor 线程池处理
+	- Executor 线程池中的工作线程最终负责【处理请求】
+- 特点：
+	- 责任单一化，每个线程都只负责一个任务：实现高并发
+	- Tomcat对 线程池的拓展
+		- 规定父类的拒绝策略的抛出异常，他在子类中重写这个函数，并且捕捉异常
+		- 在设置限时等待将任务强制放入队列
+			- 只有这次强制放入也失败后，才会真正向客户端返回连接失败的错误
+			- 这提供了最后一次缓冲的机会
+- 相关配置：
+	- Connector：
+		- 并发处理能力：
+			- maxThreads：最大线程数。决定Tomcat可同时处理的最大请求数
+				- 私有线程池的配置
+					- 局部。仅对当前这个 `Connector`有效。
+					- 当 `Connector`引用了 `Executor`后，**此配置被忽略**
+				- CPU密集型：`CPU核心数 ± 50`  
+				- I/O密集型：`CPU核心数 * (1 + 平均I/O等待时间/平均CPU计算时间)`，或直接设置更高如 `200-400`
+			  - acceptCount：等待队列长度
+				  - 通常设置为 `50 - 100`，或与 `maxThreads`相近
+					  - 它应与 `maxThreads`配合调整
+				  - 设置过大在突发流量下可能隐藏问题，导致所有请求等待时间过长；
+				  - 设置过小则无法应对瞬时高峰，容易直接拒绝请求。
+		  - 连接超时与保持
+			  - connectionTimeout：连接超时，客户端建立连接后，等待发送请求数据的最大时间
+				  - 通常 `20000`（20秒）
+			  - maxKeepAliveRequests：单个HTTP持久连接上允许的最大请求数
+				  - 根据场景设置，如 `100`（限制单个连接请求数）或 `-1`（不限制）
+			  - keepAliveTimeout：保持连接的超时时间
+				  - 略大于 `connectionTimeout`，如 `21000`
+		  - 性能优化与稳定性
+			  - enableLookups:禁用DNS反向查询，提升响应速度
+				  - 【DNS反向查询】将客户端IP解析成主机名
+					  - 绝大多数应用不需要此功能
+				  - 【提升响应速度】关闭它可以避免一次网络查询 
+				  - `false`
+			  - compression:响应压缩。减少网络传输量，适合文本内容
+				  - 【压缩】权衡
+					  - 启用GZIP压缩可以显著减少传输数据量，提高页面加载速度
+					  - 压缩会消耗额外CPU资源
+				  - 对文本内容（如HTML, CSS, JS）**开启压缩**（设为 `"on"`）
+			  - compressionMinSize：超过此大小的响应才启用压缩
+				  - 默认 `2048`（2KB）
+	  - Executor
+		  - `Connector`指定Executor后将不再使用其内置的线程池，
+			  - 因此它上面设置的 `maxThreads`、`minSpareThreads`等线程相关参数都会被忽略
+		  - `name`：线程池的唯一标识符
+			  - `<Connector>`通过它来引用线程池。
+			  - 必须设置，且保证唯一。
+		  - `maxThreads`：线程池能创建的最大工作线程数
+			  - 根据应用类型（CPU密集型或I/O密集型）和服务器硬件调整。常见范围 200-800。
+		  - `minSpareThreads`：线程池始终维护的最小空闲线程数。用于快速响应突发请求。
+			  - 可设置为 `maxThreads`的 10%-25%，以保证初始响应速度。
+		  - `maxIdleTime`：空闲线程的超时时间（毫秒）
+		  - `maxQueueSize`：任务排队队列的最大长度
+		  - `prestartminSpareThreads`：是否在Tomcat启动时就初始化 `minSpareThread

@@ -1,124 +1,63 @@
-下面给出一份“**教科书级笔记**”，完全保留你原始素材的所有信息，但做三件事：
+- 需求背景：
+	- 【公共变量的必要性】在方法调用链中层层传递公共参数（如用户信息），代码冗余
+		- 因此这类变量会被设置为成员变量或者静态变量
+		- 但是这将变量暴露出来了，带来了并发安全问题
+	- 【公共变量带来的问题】多线程并发修改共享变量，尝试解决：
+		- 加锁
+			- 会导致性能下降
+		- 每次调用的时候创建新对象
+			- 解决了并发安全
+			- 频繁创建和销毁对象会带来巨大的性能开销
 
-1. 把碎片信息重新组织成“**一页就能看完**”的层级结构；  
-2. 用“**颜色符号 + 一句话总结**”帮你秒抓重点；  
-3. 补充一张“**ThreadLocal 内存泄漏示意图**”（文字版），让你面试时随手就能画出来。
+- 解决措施：ThreadLocal ![[Pasted image 20251203221525.png]]
+	- 每个 Thread 内有自己的实例副本，且该副本只能由当前 Thread 使用，其他线程不可访问
+		- 【满足使用的需求】作为Thread的全局变量，作为公共参数
+		- 【满足使用的安全】不在线程中共享，从根源解决了并发问题
 
----
+- 实现线程隔离的基础：![[Pasted image 20251203223903.png]]
+	- Map(ThreadLocalMap)作为Thread的属性
+		- ThreadLocalMap是Thread的内部类，Entry是ThreadLocalMap的内部类![[Pasted image 20251203224736.png]]
+		- 每个Thread都有自己的Map
+			- 线程之间相互隔离，不共享，不存在并发问题
+			- Thread和Map的生命周期一样
+				- Thread销毁的时候，Map也会随之销毁，减少内存的使用
+				- 早先的设计：Thread销毁了，Entry并不会减少、
+		-  【ThreadLocalMap的结构】
+			- INITIAL_CAPACITY：初始容量
+				- 默认是16
+			- table：存放Entry数据的数据
+			- size：表使用量
+				- Entry数组中存放Entry的个数
+			- threshold：进行扩容的阈值
+				- 表使用量（size）大于扩容阈值（threshold）的时候进行扩容
+				- 默认为0
+			- 解决哈希冲突的方式：开放寻址发（线性）
+		-  【Entry的结构】
+			- key：ThreadLocal对象(key)
+				- 是弱引用
+					- 设计目的：在忘记手动回收的情况，比强引用多一层保险
+						- 【多一层保险】：key和value最终都会变成null，即对应内存被回收
+						- 实现原理：
+							- 将ThreadLocal对象的生命周期和线程的生命周期解绑
+								- ThreadLocal在当前线程中使用完后会被回收，对应Enrty的key为null
+							- ThreadLocalMap中的set/getEntry方法中，会对key为null进行判断
+								- 如果为null的话，那么是会对value置为null的。
+									- 即回收了value
+					- [[弱引用不是导致内存泄露的原因]]：
 
-# 📒 ThreadLocal 笔记（单页速查）
-
-| 元素 | 一句话定位 |
-|---|---|
-| 🎯 **设计初衷** | 用“线程级副本”代替“全局共享变量”，既避免锁，又省得层层传参。 |
-| ⚠️ **作者态度** | 业务代码首选**显式参数**；ThreadLocal 是**框架级暗器**，不是瑞士军刀。 |
-
----
-
-## 1 技术背景 & 定位
-| 维度 | 内容 |
-|---|---|
-| 痛点 | 全局变量（如数据库连接）在多线程下不安全；显式传递又啰嗦。 |
-| 解决方案 | 线程封闭 → ThreadLocal 给每个线程**独立副本**。 |
-| 替代关系 | 可**跨方法**替代参数传递，但**不推荐**当常规手段。 |
-
----
-
-## 2 核心定义
-| 名词 | 定义 | 代码片段 |
-|---|---|---|
-| `ThreadLocal<T>` | **线程局部变量容器**，每个线程一份副本，互不干扰。 | `ThreadLocal<Connection> holder = new ThreadLocal<>();` |
-| `initialValue()` | 线程**第一次**调用 `get()` 且 **未先 set()** 时触发，用于懒加载初始值。 | 见下方模板 |
-
-```java
-private static final ThreadLocal<Connection> HOLDER = new ThreadLocal<>() {
-    @Override protected Connection initialValue() {
-        return openNewConnection();   // 仅当前线程可见
-    }
-};
-```
-
----
-
-## 3 原理速览（面试口述 30 秒版）
-1. **存储位置**：数据**不在** ThreadLocal 实例，而在**当前 Thread 对象的 `threadLocals` 字段**（一个 `ThreadLocalMap`）。  
-2. **键值对**：Key 是**弱引用**的 `ThreadLocal` 对象，Value 是副本。  
-3. **隔离性**：`get()` 只从**当前线程**的 Map 里取值，天然线程间隔离。  
-4. **内存泄漏风险**：线程池场景下线程不灭 → Map 不回收 → **必须手动 `remove()`**！
-
-```
-ThreadRef ﹤-- strong
-   ↓
-ThreadLocalMap
-   ├─ Key (ThreadLocal@WeakRef)  → 可能被 GC
-   └─ Value (Heavy Object)       → 若 Key 为 null，成 **野值**，无法访问却仍占内存
-```
-
----
-
-## 4 典型场景 vs 替代方案
-| 场景 | 为什么选 ThreadLocal | 对比其他方案 |
-|---|---|---|
-| **数据库连接** | 每个线程复用**专属连接**，免锁且免传参 | 全局连接池需同步；层层传参臃肿 |
-| **临时缓冲区** | 高频方法（如 `Integer.toString()`）避免**重复 new 12 字节数组** | 每次新建对象 → GC 压力 |
-
----
-
-## 5 滥用反例（作者警告 ⚠️）
-1. 把**所有全局变量**改成 ThreadLocal → **类间隐含耦合**，可重用性下降。  
-2. 当作**隐式方法参数** → 代码可读性变差，调试困难。  
-3. 用做**应用级缓存** → 失去共享价值，内存翻倍。
-
----
-
-## 6 内存泄漏 → 标准面试答
-**Q：ThreadLocal 会导致内存泄漏吗？**  
-**A：**  
-- **会！** 线程池里线程不死亡，`ThreadLocalMap` 一直存在。  
-- **Key** 是弱引用，**ThreadLocal 对象**被 GC 后 Key = null，但 **Value 仍是强引用**，成为**野条目**。  
-- **解决**：用完即 **`remove()`**，清空 Map 条目；或 JDK 8+ 使用 `try-finally` 模板。
-
-```java
-try {
-    HOLDER.set(conn);
-    // ... 业务
-} finally {
-    HOLDER.remove();   // 务必
-}
-```
-
----
-
-## 7 与 synchronized 原子性可见性对比
-| 维度 | synchronized | ThreadLocal |
-|---|---|---|
-| 核心手段 | **锁**共享资源 | **不共享**资源 |
-| 保证可见性 | 解锁前强制刷主存 | 副本在线程内，**天然可见** |
-| 保证原子性 | 互斥块内代码原子 | 单线程操作副本，**无需原子** |
-| 代价 | 上下文切换/阻塞 | 每个线程一份内存，**无锁** |
-
----
-
-## 8 使用 checklist（贴墙）
-- [ ] 真的需要**跨方法**线程隔离吗？  
-- [ ] 对象**生命周期** ≤ 线程生命周期？（线程池必须 `remove`）  
-- [ ] 数据量**不会太大**？（防止内存膨胀）  
-- [ ] 代码里**显式 remove** 了吗？  
-
----
-
-## 9 一张图记脑海（文字版）
-```
-业务线程 ──►  ThreadLocal.set(value)
-     │            ↓
-     ├─ThreadLocalMap──Key(WeakRef) → Value(强引用)
-     │            ↓
-     └─ThreadLocal.get()   ←→  其他线程完全看不到
-```
-
----
-
-🎯 **结语**  
-ThreadLocal = **线程级副本保险箱**，用得好是“无锁并发神器”，用不好就是“内存泄漏暗雷”。  
-**牢记**：  
-> “**显式参数优先，ThreadLocal 后补；用完必 remove，线程池才长寿。**”
+				- 好处：为什么不以Thread为变量
+					- 这样使得Entry数量变少，尽量避免哈希冲突
+						- Thread的数量远远多余ThreadLocal的数量
+			- value：线程的变量副本(value)
+				- 我们实际使用后的公共数据
+		- 【谁来维护这个Map】ThreadLocal
+			- 【维护的范围】获取和设置线程的变量值。
+- 核心方法的实现
+	- set方法
+- 问题：内存泄露![[Pasted image 20251203232104.png]]
+	- 含义：线程内ThreadLocal不用了，无用的Entry一直存在内存中
+	- 根本原因：
+		- ThreadLocalMap和ThreadLocal的生命周期一样长
+	- 直接原因：
+		- 没有手动删除Enrty（remove）
+		- 或者当前线程还在运行

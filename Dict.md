@@ -1,0 +1,56 @@
+- 需求背景：我们知道Redis是一个键值型(Key-Value Pair)的数据库，我们可以根据键实现快速的增删改查。而键与值的**映射关系**正是通过Dict来实现的。
+- Dict的结构：哈希表（dictht）、哈希节点（dictEntry）、字典（dict）![[Pasted image 20251126162227.png]]
+	- 哈希表![[Pasted image 20251126160752.png]]
+		- used：由于哈希冲突的存在，是可能出现used>size的情况
+	- 哈希节点![[Pasted image 20251126161006.png]]
+		- next：哈希冲突的解决方法--**链地址法**
+			- 在链表头插入新元素：避免找到链表尾的过程
+		- v：存储值，使用联合体使得它可以存放指针、多种整数或浮点数，非常灵活
+			- void * 不代表空，而代表任意类型
+		- key：存储键，支持多种数据类型
+			- 当我们向Dict添加键值对时，Redis首先根据key计算出hash值(h)，然后利用h&sizemask来计算元素应该存储到数组中的哪个索引位置。
+				- h&sizemask等价于h%size，但是运算速度更快
+	- 字典![[Pasted image 20251126161824.png]]
+		- 功能性字段：
+			- 哈希运算相关
+				- type：不同情况下使用不同哈希函数
+				- privdata
+			- rehash相关：
+				- rehashidx
+				- pauserehash
+		- `ht[2]`：为了哈希扩容而准备
+			- `ht[0]`：正常情况下，所有数据都存在这里。
+			- `ht[1]`：当需要扩容或缩容时，会分配`ht[1]`，然后进行**渐进式 rehash**，将数据分批从`ht[0]`迁移到`ht[1]`
+- 哈希扩容：
+	- 需求背景：Dict中的HashTable就是数组结合单向链表的实现，当集合中元素较多时，必然导致哈希冲突增多，链表过长，则查询效率会大大降低。
+	- 时机：Dict在每次新增键值对时都会检查负载因子(LoadFactor=used/size)，满足以下两种情况时会触发哈希表扩容
+		- 哈希表的 LoadFactor>=1，并且服务器没有执行 BGSAVE 或者 BGREWRITEAOF 等后台进程
+		- 哈希表的 LoadFactor>5
+	- 扩容的目标大小：第一个大于等于used+1的 2^n
+- 哈希收缩：
+	- 时机：每次删除元素时，也会对负载因子做检查，当LoadFactor<0.1时，会做哈希表收缩
+	- 收缩的目标大小：
+		- used<4：收缩成4
+		- used>4：第一个大于等于used+1的 2^n
+- dictExpand：本身并不直接迁移数据，而是做预处理
+	- 对参数检查和对redis目前的状态进行判断
+	- 分配并初始化新哈希表（`ht[1]`）
+		- 计算新的哈希表容量realsize：找第一个大于等于size 的2^n
+		- 设置sizemask和used个数
+		- 分配内存
+	- 设置标志位，告诉redis，准备进行rehash
+		- `d->rehashidx = 0;`：将 rehashidx 从 -1 设
+- rehash：对哈希表中的每一个key重新计算索引，插入新的哈希表![[Pasted image 20251126170542.png]]
+	- 需求背景：不管是扩容还是收缩，必定会创建新的哈希表，导致哈希表的size和sizemask变化，而key的查询与sizemask有关。因此必须对哈希表中的每一个key重新计算索引，插入新的哈希表，这个过程称为rehash
+	
+	- 流程：在dictExpand的基础上进行
+		1. 将`dict.ht[0]`中的每一个dictEntry都rehash到`dict.ht[1]`![[Pasted image 20251126170657.png]]
+			- 时机：在启动rehash进行状态（rehashidx>=0）的时候，在每次增删改查的时候
+				- 为了避免长时间对大量数据进行rehash，导致主线程阻塞
+			- rehash的对象：每次对rehashidx这个hashEntry进行rehash
+			- 更新：
+				- 新增操作，则直接写入`ht[1]`
+				- 查询、修改和制除则会在`dict.ht[0]`和`dict.ht[1]`依次查找并执行。
+					- 这样可以确保`ht[0]`的数据只减不增，随着rehash最终为空
+				- rehash完成后，rehashidx++，指向下一个rehash目标
+		2. 全部完成之后：将`dict.ht[1]`赋值给`dict.ht[0]`，给`dict.ht[1]`初始化为空哈希表，释放原来的`dict.ht[0]`的内存![[Pasted image 20251126170737.png]]

@@ -1,0 +1,16 @@
+- 需求背景： 慢查询会导致redis主线程阻塞
+	- redis是单线程，命令执行在任务队列中排队
+- 慢查询日志的记录设置：
+	- 配置操作（临时）
+		- 修改配置的方式 config set key value
+		- 查询配置的方式 config get key
+	- slowlog-log-slower-than:慢查询阈值，单位是微秒。默认是10000，建议1000
+	- slowlog-max-len:慢查询日志(本质是一个队列)的长度。默认是128，建议1000
+		- 慢查询会被放入慢查询日志中，日志的长度有上限
+- 查看慢查询日志列表:
+	- slowlog len:查询慢查询日志长度
+	- slowlog get n:读取n条慢查询日志![[Pasted image 20251126134637.png]]
+	- slowlog reset:清空慢查询列表
+- 慢查询的出现原因:
+	- 某些命令:keys *
+	- 不合理的数据结构(BigKeys)

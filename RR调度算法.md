@@ -1,3 +1,7 @@
+---
+aliases:
+  - RR
+---
 RR调度算法是将response time 和 turnaround time 作为衡量指标下，与FIFO、SJF、STCF调度算法[[RR算法、SJF算法、FIFO算法比较|比较]]下的牺牲周转时间获得响应时间短的最优解
 
 ![[Pasted image 20250927160135.png]]

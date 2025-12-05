@@ -1,3 +1,7 @@
+---
+aliases:
+  - Redis集群
+---
 ## Redis的需求背景
 - Redis主从和Redis哨兵可以解决高可用、高并发读的问题。但是依然有两个问题没有解决:
 	- 海量数据存储问题
@@ -219,15 +223,55 @@ re
         
     - 配置时，只需要填写集群中**任意一个或多个节点**的地址（IP:Port）即可，客户端会自动发现整个集群拓扑。例如，在Spring Boot中：
         
-        ```
-        spring:
-          redis:
-            cluster:
-              nodes: 192.168.0.100:6379,192.168.0.100:6380,192.168.0.100:6381
-            password: your_secure_password_here
-        ```
-        
     
+```
+data:  
+  redis:  
+    cluster:  
+      max-redirects: 6  
+      nodes:  
+        - 192.168.0.100:6379  
+        - 192.168.0.100:6380  
+        - 192.168.0.100:6381  
+        - 192.168.0.100:6382  
+        - 192.168.0.100:6383  
+        - 192.168.0.100:6384  
+    lettuce:  
+      pool:  
+        max-active: 10  
+        max-idle: 10  
+        min-idle: 1  
+        time-between-eviction-runs: 10s  
+jackson:  
+  default-property-inclusion: non_null # JSON处理时忽略非空字段
+        
+        
+```
+
+- Redisson配置
+```
+@Bean  
+public RedissonClient redissonClient(){  
+    Config config = new Config();  
+    config.useClusterServers()  
+            .addNodeAddress(  
+                    "redis://192.168.0.100:6379",  
+                    "redis://192.168.0.100:6380",  
+                    "redis://192.168.0.100:6381",  
+                    "redis://192.168.0.100:6382",  
+                    "redis://192.168.0.100:6383",  
+                    "redis://192.168.0.100:6384"  
+            )  
+            .setScanInterval(2000) // 拓扑刷新间隔  
+            .setRetryAttempts(3)   // 命令重试次数  
+            .setRetryInterval(1000) // 重试间隔  
+            .setTimeout(3000)      // 命令超时  
+            .setConnectTimeout(5000); // 连接超时  
+  
+    return Redisson.create(config);  
+}
+```
+- [[拓扑刷新]]的含义
 ## Redis集群相关命令
 ### 添加节点
  将新节点（192.168.0.100:6382）加入现有集群（以192.168.0.100:6379为例）
@@ -347,3 +391,38 @@ redis-cli --cluster del-node 192.168.0.100:6379 24421f...
 
 ### 数据迁移
 ![[c499bee10b98fbf442a93b2bf6ba1968.jpeg]]
+
+## Redis集群的问题
+- 主从和集群的选择：
+	- 单体Redis（主要来自Redis）已经可以达到百万的QPS，并且也具备了非常强的高性能。
+	- 如果主从能满足业务需求的情况下，大量不建立Redis集群
+### 集群完整性问题
+- 需求背景：在Redis的默认配置中，如果发现任意一个插槽不可用，则整个集群都会停止对外服务![[Pasted image 20251126143629.png]]
+- 配置：cluster-require-full-coverage 
+	- 默认值为：yes
+	- 为了保证高可用特性，这里建议将 cluster-require-full-coverage配置为no
+### 集群的带宽问题
+
+- 需求背景：集群节点之间会不断的互相Ping来确定集群中其它节点的状态。
+	- 每次Ping携带的信息至少包括:
+		- 插槽信息
+		- 集群状态信息
+	- 因此：集群中节点越多，集群状态信息数据量也越大。节点数量过多，每次集群互通需要的带宽会非常高
+		- 10个节点的相关信息可能达到1kb
+- 解决途径：
+	- 减小单个物理机的ping带宽占用：
+		- 避免大集群，集群节点数不要太多，最好少于1000。
+			-  1000个节点一次ping要100kb的数据
+		- 如果业务庞大，则建立多个集群
+			- 根据业务拆分集群
+		- 避免在单个物理机中运行太多Redis实例，大概十个左右
+			- 单个机器Redis实例越多，ping的数据量也是翻倍
+	- 减少ping的频率：
+		- 配置合适的cluster-node-timeout值
+			- cluster-node-timeout 越大，ping的频率会降低
+			- cluster-node-timeout 太大，故障发现的能力变弱，可用性降低。
+### [[集群的数据倾斜问题]]
+- 数据倾斜的表现：
+	- 存储倾斜：某些节点内存使用率远高于其他节点
+	- 流量倾斜：某些节点QPS/带宽使用率异常高
+	- CPU倾斜：某些节点CPU使用率持续高位

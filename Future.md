@@ -1,0 +1,6 @@
+- `get()`:阻塞获取结果
+- `get(long timeout, TimeUnit unit)`：带超时阻塞等待结果。
+- `isDone()`：非阻塞判断任务是否完成
+	- 【完成】正常结束、异常或取消都算
+- `cancel(boolean mayInterruptIfRunning)`：尝试取消任务
+	- 如果任务已启动，`mayInterruptIfRunning`为 true 会尝试中断它。
