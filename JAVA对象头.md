@@ -6,4 +6,5 @@ aliases:
 - 组成内容：
 	- Mark Word：不同的状态（锁状态）下不同的内容成分![[Pasted image 20251130211335.png]]
 	- Klass Word：指针，指向对象从属的类对象
+		- 根据这个决定方法的动态绑定
 	- Array Length：数组长度，仅数组对象有
