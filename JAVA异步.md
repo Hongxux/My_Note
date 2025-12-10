@@ -1,0 +1,18 @@
+
+- 核心搭配：CompletableFuture非阻塞的回调式和链式调用+ 定制化 ThreadPoolExecutor线程池
+	- 使用CompletableFuture的时候传递自己定制的线程池
+- 使用 `CompletableFuture`进行任务编排
+	- **串行与并行**：
+		- 使用 `thenApply`, `thenCompose`处理串行依赖；
+		- 使用 `thenCombine`合并两个独立任务的结果；
+		- 使用 `allOf`或 `anyOf`等待多个任务完成
+	- **异常处理**：务必使用 `exceptionally`或 `handle`方法处理异常，避免异常被“静默吞没”，这对于系统稳定性至关重要
+	- **超时控制**（JDK 9+）：使用 `orTimeout`方法为异步任务设置超时，防止长时间阻塞
+	- **上下文传递**：异步任务会切线程，导致 `ThreadLocal`中的信息（如用户ID、追踪链TraceID）丢失。解决方案是使用 `TransmittableThreadLocal`（TTL）等工具在任务提交时拷贝上下文
+- 使用 `ThreadPoolExecutor`进行资源管理
+	- 使用原因：强烈不建议直接使用 `Executors`工厂类创建固定大小或可缓存的线程池，因为它们内部使用无界队列或无限的线程数，在突发流量下容易导致内存溢出(OOM)
+	- 使用配置：
+		- **核心与最大线程数**：I/O密集型任务可设置较大（如CPU核数的2-4倍），CPU密集型任务则不宜过大。
+		- **有界队列**：如 `ArrayBlockingQueue`，大小需结合系统负载和响应要求设定。
+		- **拒绝策略**：`CallerRunsPolicy`是一种温和的降级策略，当线程池无法处理时，由调用者线程直接运行，起到天然的限流作用。
+	- **线程池隔离**：不同业务类型（如订单、用户、风控）应使用独立的线程池。这能避免非核心业务拖垮核心业务，实现故障隔离和资源可控
