@@ -32,6 +32,12 @@
 				- 表使用量（size）大于扩容阈值（threshold）的时候进行扩容
 				- 默认为0
 			- 解决哈希冲突的方式：开放寻址发（线性）
+			- 哈希扩容的方式：
+				- 触发条件：当 `ThreadLocalMap`中存储的 `Entry`数量达到阈值（`threshold`，初始为 `len * 2/3`）时，会尝试扩容
+				- 扩容过程
+					1. 先执行一次**全量探测式清理**:清理所有 `key`为 `null`的过期 `Entry`
+					2. 清理后如果 `size`仍然 >= `threshold * 3/4`，才会真正执行扩容
+						- 创建一个新的 `Entry`数组（大小为原来的 2 倍），并重新哈希所有有效的 `Entry`
 		-  【Entry的结构】
 			- key：ThreadLocal对象(key)
 				- 是弱引用
@@ -54,10 +60,17 @@
 			- 【维护的范围】获取和设置线程的变量值。
 - 核心方法的实现
 	- set方法
-- 问题：内存泄露![[Pasted image 20251203232104.png]]
-	- 含义：线程内ThreadLocal不用了，无用的Entry一直存在内存中
-	- 根本原因：
-		- ThreadLocalMap和ThreadLocal的生命周期一样长
-	- 直接原因：
-		- 没有手动删除Enrty（remove）
-		- 或者当前线程还在运行
+- 问题：
+	- 内存泄露![[Pasted image 20251203232104.png]]
+		- 含义：线程内ThreadLocal不用了，无用的Entry一直存在内存中
+		- 根本原因：
+			- ThreadLocalMap和ThreadLocal的生命周期一样长
+		- 直接原因：
+			- 没有手动删除Enrty（remove）
+			- 或者当前线程还在运行
+		- 解决措施：使用完 `ThreadLocal`后，在finaly块中必须调用 `remove()`方法，将当前线程的 `ThreadLocalMap`中对应的 `Entry`删除
+	- 在异步或线程池环境中父线程中的 `ThreadLocal`数据无法自动传递给线程池中复用的工作线程
+		- 原因：线程池中的线程是预先创建好的，与提交任务的父线程并非父子关系
+		- 解决措施：
+			- **手动传递**：在提交任务到线程池时，手动将父线程的上下文信息作为参数传递给 `Runnable`或 `Callable`任务
+			- **使用 `InheritableThreadLocal`**：仅限于真正的父子线程（通过 `new Thread()`创建）场景，对线程池无效

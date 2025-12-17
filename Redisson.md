@@ -3,7 +3,55 @@
 #### 1.引入依赖
 ![[Pasted image 20251120132401.png]]
 #### 2.配置RedissonConfig连接
-![[Pasted image 20251120134635.png]]
+```
+
+@Configuration  
+public class RedisConfig {  
+    @Bean  
+    public RedissonClient redissonClient() {  
+        Config config = new Config();  
+        // 设置传输模式为EPOLL（Linux系统）以获得更好性能  
+        config.setTransportMode(TransportMode.NIO);  
+        // 设置线程数（重要优化）  
+        int availableProcessors = Runtime.getRuntime().availableProcessors();  
+        config.setThreads(availableProcessors); // 业务线程数  
+        config.setNettyThreads(availableProcessors * 2); // Netty I/O线程数  
+        // 集群配置  
+        config.useClusterServers()  
+                // 节点地址  
+                .addNodeAddress(  
+                        "redis://192.168.0.100:6379",  
+                        "redis://192.168.0.100:6380",  
+                        "redis://192.168.0.100:6381",  
+                        "redis://192.168.0.100:6382",  
+                        "redis://192.168.0.100:6383",  
+                        "redis://192.168.0.100:6384"  
+                )  
+                // 集群扫描设置  
+                .setScanInterval(2000) // 集群状态扫描间隔(毫秒)  
+  
+                // 连接池配置（核心优化）  
+                .setMasterConnectionPoolSize(64) // 主节点最大连接数  
+                .setMasterConnectionMinimumIdleSize(24) // 主节点最小空闲连接数  
+                .setSlaveConnectionPoolSize(64) // 从节点最大连接数  
+                .setSlaveConnectionMinimumIdleSize(24) // 从节点最小空闲连接数  
+  
+                // 超时与重试配置  
+                .setIdleConnectionTimeout(10000) // 空闲连接超时(毫秒)  
+                .setConnectTimeout(5000) // 连接超时(毫秒)  
+                .setTimeout(3000) // 命令执行超时(毫秒)  
+                .setRetryAttempts(3) // 命令重试次数  
+                .setRetryInterval(1000) // 重试间隔(毫秒)  
+  
+                // 心跳与保活设置  
+                .setPingConnectionInterval(30000) // 心跳间隔(毫秒)  
+                .setKeepAlive(true); // 启用TCP保活  
+  
+                  
+        return Redisson.create(config);  
+    }  
+}
+```
 #### 3.使用RLock的模板
 ```
 import org.redisson.api.RLock;

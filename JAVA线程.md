@@ -50,13 +50,15 @@
 		- ReentrantLock
 			- [[ReentrantReadWriteLock]]
 			- [[StampedLock]]
-	- Semaphore
-	- [[CountdownLatch]]
-	- [[CyclicBarrier]]
+	- 同步信号器
+		- Semaphore
+		- [[CountdownLatch]]
+		- [[CyclicBarrier]]
 	- 并发集合工具类
 		- [[ConcurrentHashMap]]
-		- ConcurrentLinkedQueue
+		- [[ConcurrentLinkedQueue]]
 		- BlockingQueue(阻塞队列)
 		- CopyOnWriteArrayList
+- 安排多任务:[[CompletableFuture]]
 - disruptor
 - guava

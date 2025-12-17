@@ -1,3 +1,26 @@
+1. **准备环境**：创建并配置应用的运行环境（`ConfigurableEnvironment`）
+	- 配置来源：配置冲突的按照优先级合并
+		- 命令行参数
+		- 系统属性
+		- `application.properties`/`application.yml`配置文件
+	- 完成后会触发 `ApplicationEnvironmentPreparedEvent`事件
+    
+2. **创建 ApplicationContext**：根据第一步推测出的**应用类型**，Spring Boot 会实例化对应的 `ApplicationContext`。例如，对于标准的 Servlet Web 应用，会创建 `AnnotationConfigServletWebServerApplicationContext`。这个上下文是 Spring IoC 容器的核心。
+    
+3. **刷新 ApplicationContext**：这是整个启动过程的**最核心、最复杂**的一步。它调用了我们之前讨论过的 `AbstractApplicationContext.refresh()`方法。此方法会：
+    1. 加载并注册所有的 Bean 定义（通过扫描 `@Component`、`@Configuration`等）。
+    2. 调用 `BeanFactoryPostProcessor`来修改 Bean 定义（这是自动配置 `@EnableAutoConfiguration`生效的关键步骤）。
+    3. 实例化所有非延迟加载的单例 Bean，并完成依赖注入。
+    4. 简单来说，**Spring 容器在此刻被完全初始化**。
+4. **发布 started 事件**：在刷新完成、容器就绪，但**Web 服务器尚未启动**时，Spring Boot 会发布一个 `ApplicationStartedEvent`。这是“容器已就位，服务器即将启动”的信号。
+    
+5. **启动嵌入式 Web 服务器**：这是 Spring Boot 的“招牌动作”之一。它会根据类路径下的依赖，自动创建并启动一个嵌入式的 Servlet 容器（如 Tomcat、Jetty 或 Undertow）。此时，应用已经可以**接收和处理 HTTP 请求**了。
+    
+6. **callRunners**：在所有 Bean 都就绪，且 Web 服务器（如果存在）也启动后，Spring Boot 会查找并执行所有实现了 `ApplicationRunner`或 `CommandLineRunner`接口的 Bean。这是开发者执行**应用启动后、业务开始前**的最后初始化逻辑的绝佳位置。
+    
+7. **发布 ready 事件**：最后，Spring Boot 会发布 `ApplicationReadyEvent`。这标志着**整个 Spring Boot 应用已完全启动并准备就绪**。监听此事件的监听器，可以用来执行一些最终的健康检查或状态上报。
+---
+
 1. 开启计时与引导上下文创建
 	- 开启计时方式：使用StopWatch
 		- 用于精确测量启动耗时，并在日志中输出。

@@ -62,8 +62,6 @@ public class UserService {
 #### 基本属性
 ##### 一、[[事务传播]]行为（Propagation）- 核心难点
 
-
-
 ##### 二、事务隔离级别（Isolation）
 
 解决并发事务间的数据可见性问题。

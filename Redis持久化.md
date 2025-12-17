@@ -59,8 +59,7 @@ AOF全称为Append Only File(追加文件)。Redis处理的每一个写命令都
 			- 如果aof的fsync时间过长，主线程认为出问题的，于是进行主线程阻塞
 			- 而做RDB全量同步和rewrite会占用大量IO资源，会导致fsync时长增加
 			- 因此为了避免主线程阻塞，要禁止在rewrite期间做aof，避免fsync时间增加
-	- no-appendfsync-on-rewrite=yes的坏处：数据丢失的可能
-		- 在禁止aof的期间可能导致数据丢失，所以这是性能和数据安全性的权衡
+			- 在禁止aof的期间可能导致数据丢失，所以这是性能和数据安全性的权衡
 - Redis部署建议：
 	- ① Redis实例的物理机要预留足够内存，应对fork和rewrite
 	- ②单机多实例部署，单个Redis实例内存上限不要太大，例如4G或8G。

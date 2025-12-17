@@ -161,14 +161,19 @@ daemonize yes
 ###  第三步：启动服务并创建集群
 
 1. **启动所有Redis实例**：
-    _
+    先开启root
 ```
     for port in 6379 6380 6381 6382 6383 6384;do
 redis-server /etc/redis/cluster/$port/redis.conf
 done
 
+
 ```
-    
+
+检查启动情况
+```
+    ps aux | grep redis-server
+```
 2. **创建分片集群**：
     
     使用 `redis-cli`命令一键创建集群，`--cluster-replicas 1`参数表示每个主节点分配1个从节点。
