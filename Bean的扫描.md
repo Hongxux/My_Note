@@ -2,11 +2,7 @@
 aliases:
   - 组件扫描
 ---
-#### Bean 的发现——组件扫描
 ​
-##### 1. 核心机制：`@ComponentScan`
-
-- ​**作用**​：`@ComponentScan`注解告诉 Spring 框架应该从**哪些包路径下**开始扫描，寻找那些被 `@Component`及其衍生注解（`@Controller`, `@Service`, `@Repository`）标记的类。
     
 - ​**必要性**​：仅仅在类上加了注解是没用的，​**必须被 `@ComponentScan`扫描到**，Spring 才会将其识别为 Bean 并纳入容器管理。
     

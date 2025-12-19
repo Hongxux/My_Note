@@ -132,7 +132,7 @@ public class LogAspect {
     }
 }
 ```
-- [[AOP五种通知类型]]
+- [[AOP通知类型]]
 - [[多切面执行顺序]]@order
 - 在通知中获得当前正在执行的目标方法的信息[[joinpoint]]
 - [[切点的重用]]
