@@ -26,5 +26,15 @@
 		- 旧版本按修改时间倒序存放在 Undo Log 里。
 - undo log链条：一个事务中可能产生多种类型的undo log，形成多个链表
 	-  一个链表存储TRX_UNDO_INSERT类别的undo log
+		- insert undo logs
+			- 来源：对insert操作产生的undo log
+			- 内容：记录下被插入记录的主键信息
+			- 生命周期：该undo log可以在事务提交后可直接删除，不需要进行purge操作
+				- 原因：insert操作的记录，只对事务本身可见，对其他事务不可见
 	-  一个链表存储TRX_UNDO_UPDATE类别的undo log
+		- update undo log
+			- 来源：对delete和update操作产生的undo log
+			- 内容：记录足够的信息来恢复到前一个版本（包含更新前列的旧值等信息）
+			- 生命周期：不能在事务提交时就进行删除。提交时放入undo log链表，等待purge线程进行最后的删除。
+				- 原因：该undo log可能需要提供MVCC机制
 	-  临时表修改产生的undo log与常规undo log分开存储
