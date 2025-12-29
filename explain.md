@@ -44,7 +44,7 @@
 	    - 优化方式：为查询条件中的列创建索引，特别是 `WHERE`、`JOIN ON`子句中的列。
     
 2. **Extra 列：优化器如何处理查询的补充信息**
-    - **Using index**：查询使用了"覆盖索引"，
+    - **Using index**：查询使用了"**覆盖索引**"，
     - **Using where**：表示存储引擎返回行后，MySQL 服务器层**还需要再次使用** WHERE 条件进行过滤。
 	    - 索引未能完全覆盖查询条件
 	- **Using index condition**：使用了**索引条件下推**
@@ -53,6 +53,7 @@
 	    - 常见于 `GROUP BY`, `DISTINCT`, `UNION`或复杂的 `ORDER BY`操作
 	    - 且这些操作无法利用索引
     - **Using filesort**：表示 MySQL 无法使用索引来完成排序
+	    - 索引排序生效的判断条件与正向标识：`Extra` 字段中**不存在 `Using filesort`**
 
 ---
 - **[[order by优化]]**

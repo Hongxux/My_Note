@@ -48,6 +48,20 @@
 	}
 	```
 - 实现原理：基于AQS
-	- 将state取计数器的语义
-		- 主要依赖 volatile 变量读和 CAS 操作
-			- 避免了昂贵的锁竞争，在高并发场景下性能表现优异
+	-  同步状态（state）定义： **剩余计数**（int 类型）
+		- 初始化时设为 N（比如 10）；
+		- 每次`countDown()`调用，state-1；
+		- state=0 时，所有等待线程被唤醒。
+	-   核心钩子方法实现（共享模式）
+		- **主线程await () → 调用 AQS 的 acquireShared**：
+			- tryAcquireShared在state为0的时候返回真
+		    - 判断 state 是否 = 0
+			    - 是则返回 1（成功，无需阻塞）；
+			    - 否则返回 - 1（失败，入队阻塞）；
+		- **工作线程countDown () → 调用 AQS 的 releaseShared**：
+		    - CAS 将 state-1
+		    - 若 state=0 则返回 true，触发`doReleaseShared`唤醒所有等待线程；
+		    - 否则返回 false（不唤醒）。
+	- 关键设计
+		- 一次性：state 减到 0 后，无法重置（区别于 CyclicBarrier）；
+		- 共享唤醒：state=0 时，所有等待线程被链式唤醒（AQS 共享模式的特性）。

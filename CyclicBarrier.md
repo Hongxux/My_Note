@@ -25,6 +25,40 @@
 		- 执行的时机：当所有线程到达屏障时，在唤醒所有线程之前，
 		- 执行的线程：最后一个到达屏障的线程
 		- 作用：在阶段切换时执行一些共享状态的更新、日志记录或初始化下一阶段所需资源等操作
+---
+
+-  基于 AQS 的实现逻辑（重点：间接基于 AQS）
+	- 核心组件：
+		- `parties`：需要到达屏障的总线程数（初始化时指定，比如`new CyclicBarrier(5)`）；
+		- `count`：剩余未到达屏障的线程数（初始 = parties，每来一个线程减 1）；
+		- `Generation`：内部类，标记 “当前代屏障”
+			- 
+	- 核心差异：CyclicBarrier 不是直接基于 AQS，而是通过`ReentrantLock`（AQS 实现）+`Condition`（AQS 的条件队列）实现；
+		- ReentrantLock的目的：避免多线程并发修改 count 导致计数错误
+	- 核心逻辑：
+		- 步骤 1：获取 ReentrantLock（独占锁）
+			- 触发时机：线程完成一个阶段任务后，调用`await()`
+			- 实现方式：`lock.lock()`
+			- 目的：保证对`count`的修改是原子操作（避免多线程并发修改 count 导致计数错误），
+		-  步骤 2：修改 count （减1）并判断是否满足屏障条件
+			- 若`count > 0`（还有线程未到达）：
+			    - 调用`condition.await()`—— 线程会释放 ReentrantLock，进入 Condition 的条件队列阻塞（底层是 AQS 的`park()`），直到被`signalAll()`唤醒。
+			- 若`count == 0`（所有线程都到达）：
+			     1. 执行构造时传入的`barrierAction`（比如 “屏障突破后执行的汇总任务”）；
+			     2. 调用`condition.signalAll()`—— 唤醒 Condition 条件队列中所有阻塞的线程（底层是 AQS 的`unpark()`）；
+			     3. 重置`count = parties`，新建`Generation`—— 实现 “循环复用”（这是 CyclicBarrier 区别于 CountDownLatch 的关键）。
+		-  步骤 3：线程被唤醒后的操作
+			1. 重新竞争 ReentrantLock
+			2. 释放锁（`lock.unlock()`）；
+			3. 退出`await()`方法，所有线程同时继续执行。
+	-  关键设计
+		- 可循环：屏障计数可重置（区别于 CountDownLatch 的一次性）；
+		- 异常处理：支持 “屏障突破者”（指定线程先执行），或超时 / 中断时重置。
+
+
+
+
+---
 - 使用示例：多阶段任务与屏障操作
 	```
 	import java.util.concurrent.*;
